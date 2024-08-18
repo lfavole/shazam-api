@@ -1,0 +1,36 @@
+name: Linting
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  linting:
+    name: Linting
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - {name: black, command: black . --check}
+        - {name: flake8, command: flake8 .}
+        - {name: isort, command: isort . --check}
+        - {name: pylint, command: 'pylint $(git ls-files *.py) --evaluation "0 if fatal else max(0, 10 - error - warning)"'}
+
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: 3.x
+        cache: pip
+
+    - name: Install dependencies
+      run: python -m pip install --upgrade pip black~=24.8 flake8~=7.1 isort~=5.13 pylint~=3.2
+
+    - name: Run ${{ matrix.name }}
+      run: python -m ${{ matrix.command }}

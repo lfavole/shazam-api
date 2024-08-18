@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+
+{% set title = "Error" %}
+{% block body %}
+    <div class="flash danger">
+        {{ message }}
+    </div>
+    <p>
+        <a href="{{ url_for("home") }}">← Go back home</a>
+    </p>
+{% endblock body %}

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block body %}
+    <aside>
+        <form method="POST" action="/setlang">
+            <p>
+                <label>
+                    Set language:
+                    <input type="text" name="lang" value="{{ lang }}" class="inline" style="width: 5em" required>
+                </label>
+            </p>
+            <p>
+                <input type="submit" value="OK">
+            </p>
+        </form>
+    </aside>
+    <form method="POST" action="/api/recognize" enctype="multipart/form-data">
+        <p>
+            <label>
+                File:
+                <input type="file" name="file">
+            </label>
+        </p>
+        <p>
+            <input type="submit" value="OK">
+        </p>
+    </form>
+{% endblock body %}
