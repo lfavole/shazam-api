@@ -1,16 +1,46 @@
 import os
+import subprocess as sp
+import sys
+import tempfile
 from contextvars import ContextVar
 from functools import lru_cache
 from pathlib import Path
+from shutil import which
 
 from flask import Flask, Response, redirect, render_template, request, session
-from shazamio import Shazam
 from werkzeug.local import LocalProxy
 
 try:
     import minify_html
 except ImportError:
     minify_html = None
+
+# This is filled only if FFmpeg is not already installed
+ffmpeg_path: str | None = which("ffmpeg")
+
+# If FFmpeg is not in PATH, download and install it
+if ffmpeg_path is None:
+    try:
+        import ffmpeg_downloader.__main__ as ffdl
+    except ImportError:
+        pass
+    else:
+        argv = sys.argv[:]
+
+        sys.argv[:] = ["ffdl", "install", "-y"]
+        ffdl.main("ffdl")
+
+        sys.argv[:] = argv
+
+        # Get the path from the ffmpeg-downloader Python API
+        import ffmpeg_downloader
+
+        ffmpeg_path = ffmpeg_downloader.ffmpeg_path
+else:
+    # Otherwise we don't need to edit PATH so we set it to None
+    ffmpeg_path = None
+
+from shazamio import Shazam  # pylint: disable=C0413
 
 # Get the remote URL for the home page
 remote_url_file = Path(__file__).parent / ".remote_url"
@@ -78,7 +108,32 @@ def setlang():
 async def recognize():
     """Recognize a song."""
     file = request.files["file"]
-    return await shazam.recognize(file.stream.read())
+
+    # If FFmpeg is already in PATH, immediatly recognize the file
+    if ffmpeg_path is None:
+        return await shazam.recognize(file.stream.read())
+
+    # Otherwise convert the file to .wav and recognize it
+    out = None
+    try:
+        # Output file
+        fd, out = tempfile.mkstemp(".wav")
+
+        # Create a temporary file with the input file...
+        with tempfile.NamedTemporaryFile("wb") as f:
+            while (chunk := file.stream.read(65536)) != b"":
+                f.write(chunk)
+
+            # ...and convert it
+            os.close(fd)
+            sp.run([ffmpeg_path, "-y", "-i", f.name, out], check=True)
+
+        # Recognize the file
+        return await shazam.recognize(out)
+    finally:
+        # Don't forget to delete the file!
+        if out is not None:
+            os.remove(out)
 
 
 app.secret_key = os.getenv("SECRET_KEY", "shazam-api-secret-key")
