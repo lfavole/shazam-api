@@ -1,3 +1,4 @@
-flask ~= 3.0
+ffmpeg-downloader ~= 0.3
+flask[async] ~= 3.0
 minify-html ~= 0.15
 shazamio ~= 0.6
